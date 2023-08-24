@@ -1,0 +1,66 @@
+import sqlite3
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+
+# Function to handle the /start command
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Welcome to the Invite Tracking Bot!")
+
+# Function to handle the /track command
+def track_invite(update: Update, context: CallbackContext) -> None:
+    if context.args:
+        user_id = update.message.from_user.id
+        invite_link = context.args[0]
+
+        # Connect to the database
+        conn = sqlite3.connect('invite_tracking.db')
+        cursor = conn.cursor()
+
+        # Insert user_id and invite_link into the database
+        cursor.execute('INSERT INTO invites (user_id, invite_link) VALUES (?, ?)', (user_id, invite_link))
+        conn.commit()
+
+        # Close the connection
+        cursor.close()
+        conn.close()
+
+        update.message.reply_text("Invite link tracked successfully!")
+    else:
+        update.message.reply_text("Invalid command format. Use /track <invite_link>")
+
+def main():
+    # Your bot token
+    TOKEN = "BOT TOKEN"
+
+    # Connect to the database or create it if it doesn't exist
+    conn = sqlite3.connect('invite_tracking.db')
+    cursor = conn.cursor()
+
+    # Create the table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS invites (
+            user_id INTEGER,
+            invite_link TEXT
+        )
+    ''')
+
+    conn.commit()
+
+    # Create an Updater instance with your bot token
+    updater = Updater(token=TOKEN, use_context=True)
+
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+
+    # Register the command handlers
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("track", track_invite, pass_args=True))
+
+    # Start polling for updates from Telegram
+    updater.start_polling()
+
+    # Keep the program running until interrupted
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
